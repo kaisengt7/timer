@@ -188,6 +188,11 @@
     .sf { left:  1%; top:  11.5%; }
     .se { left:  1%; top:  57%;   }
 
+    /* ── Time-row color fallback (for browsers without CSS var support) ── */
+    .time-row .seg     { background: #181818; }
+    .time-row .seg.lit { background: #d8d8d8; box-shadow: 0 0 4px 1px rgba(255,255,255,.2), 0 0 10px rgba(255,255,255,.08); }
+    .time-row .dot     { background: #d8d8d8; box-shadow: 0 0 4px 1px rgba(255,255,255,.2); }
+
     /* ── Alarm ────────────────────────────────────────────────────── */
     /* JS toggles .blink-phase on #board; two-phase blink via class */
     .blink-a .seg.lit, .blink-a .dot { opacity: 0.08; }
