@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Timer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Tokens ──────────────────────────────────────────────────── */
+    :root {
+      --on:  #ff2020;
+      --off: #1c0000;
+      --glow: 0 0 7px 1px rgba(255,30,0,.75),
+              0 0 20px 2px rgba(255,10,0,.38),
+              0 0 50px 4px rgba(255,0,0,.14);
+
+      /* DIAS digit box  — tall, fills most of screen height */
+      --dh: 60vh;
+      --dw: calc(var(--dh) * .62);
+
+      /* Time-row digit box */
+      --th: 17vh;
+      --tw: calc(var(--th) * .62);
+
+      /* Colon dot size */
+      --ds: calc(var(--th) * .16);
+    }
+
+    /* ── Body ────────────────────────────────────────────────────── */
+    body {
+      background: #080808;
+      min-height: 100vh;
+      display: -webkit-flex;
+      display: flex;
+      -webkit-flex-direction: column;
+      flex-direction: column;
+      -webkit-align-items: center;
+      align-items: center;
+      -webkit-justify-content: center;
+      justify-content: center;
+      gap: 1.8vh;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      overflow: hidden;
+      user-select: none;
+    }
+    #title    { margin-bottom: 1vh; }
+    .dias-row { margin-bottom: 1.5vh; }
+
+    /* ── Title ───────────────────────────────────────────────────── */
+    #title {
+      color: #333;
+      font-size: clamp(.55rem, 1.1vw, .9rem);
+      letter-spacing: .55em;
+      text-transform: uppercase;
+    }
+
+    /* ── DIAS row ─────────────────────────────────────────────────── */
+    .dias-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(.3rem, .9vh, .9rem);
+    }
+
+    .dias-digits {
+      display: flex;
+      gap: calc(var(--dw) * .06);
+    }
+
+    .dias-label {
+      color: #2e2e2e;
+      font-size: clamp(.7rem, 1.4vw, 1.1rem);
+      letter-spacing: .7em;
+      text-transform: uppercase;
+    }
+
+    /* ── Time row ─────────────────────────────────────────────────── */
+    .time-row {
+      --on:  #d8d8d8;
+      --off: #181818;
+      --glow: 0 0 4px 1px rgba(255,255,255,.2), 0 0 10px rgba(255,255,255,.08);
+      display: flex;
+      align-items: flex-start;
+      gap: clamp(.25rem, .7vw, .9rem);
+    }
+
+    .time-grp {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(.15rem, .4vh, .45rem);
+    }
+
+    .time-digs {
+      display: flex;
+      gap: calc(var(--tw) * .05);
+    }
+
+    .time-lbl {
+      color: #282828;
+      font-size: clamp(.4rem, .65vw, .6rem);
+      letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+
+    /* ── Colon separator ──────────────────────────────────────────── */
+    .colon {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: calc(var(--ds) * 1.4);
+      height: var(--th);
+    }
+
+    /* ── Decimal dot ──────────────────────────────────────────────── */
+    .dec-sep {
+      display: flex;
+      align-items: flex-end;
+      height: var(--th);
+      padding-bottom: calc(var(--th) * .12);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      width: var(--ds);
+      height: var(--ds);
+      background: #ff2020;
+      background: var(--on);
+      box-shadow: 0 0 7px 1px rgba(255,30,0,.75);
+      box-shadow: var(--glow);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    /* ── Segment digit ────────────────────────────────────────────── */
+    .seg-dig {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .seg-dig.big { width: var(--dw); height: var(--dh); }
+    .seg-dig.sm  { width: var(--tw); height: var(--th); }
+
+    /* ── Segments ─────────────────────────────────────────────────── */
+    /*
+        aaaa
+       f    b
+       f    b
+        gggg
+       e    c
+       e    c
+        dddd
+    */
+    .seg {
+      position: absolute;
+      background: #1c0000;
+      background: var(--off);
+      border-radius: 4px;
+    }
+
+    .seg.lit {
+      background: #ff2020;
+      background: var(--on);
+      box-shadow: 0 0 7px 1px rgba(255,30,0,.75), 0 0 20px 2px rgba(255,10,0,.38);
+      box-shadow: var(--glow);
+    }
+
+    /* Horizontal — a (top), d (bottom), g (middle) */
+    .sa, .sd, .sg {
+      left:   16%;
+      right:  16%;
+      height:  9%;
+    }
+    .sa { top:    1%;   }
+    .sd { bottom: 1%;   }
+    .sg { top:    45.5%; }
+
+    /* Vertical — b (top-right), c (bot-right), e (bot-left), f (top-left) */
+    .sb, .sc, .se, .sf {
+      width:  13%;
+      height: 32%;
+    }
+    .sb { right: 1%; top:  11.5%; }
+    .sc { right: 1%; top:  57%;   }
+    .sf { left:  1%; top:  11.5%; }
+    .se { left:  1%; top:  57%;   }
+
+    /* ── Alarm ────────────────────────────────────────────────────── */
+    /* JS toggles .blink-phase on #board; two-phase blink via class */
+    .blink-a .seg.lit, .blink-a .dot { opacity: 0.08; }
+
+    /* ── Controls ─────────────────────────────────────────────────── */
+    .ctrls {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: .5rem;
+      z-index: 10;
+    }
+
+    .ctrl {
+      width: 40px; height: 40px;
+      background: #161616;
+      border: 1px solid #272727;
+      color: #454545;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: .95rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s;
+    }
+    .ctrl:hover { background: #222; color: #999; }
+
+    /* ── Reset button ─────────────────────────────────────────────── */
+    #resetBtn {
+      position: fixed;
+      bottom: 4.2rem; left: 50%;
+      transform: translateX(-50%);
+      background: #c41010; color: #fff;
+      border: none;
+      padding: .65rem 1.8rem;
+      border-radius: 8px;
+      font-size: clamp(.7rem, 1.1vw, .9rem);
+      letter-spacing: .12em;
+      cursor: pointer;
+      display: none;
+      z-index: 10;
+      box-shadow: 0 0 24px rgba(255,0,0,.35);
+    }
+    #resetBtn:hover { background: #a80e0e; }
+
+    /* ── Overlay ──────────────────────────────────────────────────── */
+    #overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.78);
+      z-index: 50; display: none;
+    }
+    #overlay.open { display: block; }
+
+    /* ── Config panel ─────────────────────────────────────────────── */
+    #cfg {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      background: #181818; border: 1px solid #2c2c2c;
+      border-radius: 14px; padding: 2rem;
+      width: min(360px, 92vw);
+      z-index: 60; display: none;
+      flex-direction: column; gap: 1.15rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,.9);
+    }
+    #cfg.open { display: flex; }
+
+    .cfg-ttl { color: #bbb; font-size: .82rem; letter-spacing: .2em; text-transform: uppercase; }
+    .cfg-row { display: flex; flex-direction: column; gap: .32rem; }
+    .cfg-row label { color: #585858; font-size: .7rem; letter-spacing: .07em; text-transform: uppercase; }
+
+    .cfg-row input[type="text"],
+    .cfg-row input[type="date"],
+    .cfg-row input[type="time"] {
+      background: #111; border: 1px solid #2c2c2c; color: #ccc;
+      padding: .48rem .62rem; border-radius: 7px; font-size: .86rem;
+      width: 100%; outline: none;
+    }
+    .cfg-row input:focus { border-color: rgba(255,30,0,.35); }
+    .cfg-row input[type="range"] { width: 100%; accent-color: #c41010; cursor: pointer; }
+
+    .cfg-toggle { flex-direction: row; align-items: center; justify-content: space-between; }
+
+    .sw { position: relative; width: 44px; height: 24px; flex-shrink: 0; cursor: pointer; }
+    .sw input { display: none; }
+    .sw-track { position: absolute; inset: 0; background: #2c2c2c; border-radius: 12px; transition: background .2s; }
+    .sw-thumb { position: absolute; width: 18px; height: 18px; background: #555; border-radius: 50%; top: 3px; left: 3px; transition: transform .2s, background .2s; pointer-events: none; }
+    .sw input:checked ~ .sw-track { background: #c41010; }
+    .sw input:checked ~ .sw-thumb { transform: translateX(20px); background: #fff; }
+
+    .cfg-hint { color: #383838; font-size: .67rem; line-height: 1.4; }
+
+    .cfg-acts { display: flex; gap: .55rem; justify-content: flex-end; margin-top: .3rem; }
+    .btn { padding: .48rem 1.15rem; border-radius: 7px; border: none; font-size: .78rem; letter-spacing: .07em; text-transform: uppercase; cursor: pointer; }
+    .btn:hover { opacity: .82; }
+    .btn-cancel { background: #2c2c2c; color: #777; }
+    .btn-save   { background: #c41010; color: #fff; }
+  </style>
+</head>
+<body>
+
+<div id="title">FALTAM PARA O FIM DO MÊS</div>
+
+<!-- DIAS -->
+<div class="dias-row">
+  <div class="dias-digits">
+    <div class="seg-dig big" id="d0"></div>
+    <div class="seg-dig big" id="d1"></div>
+  </div>
+  <div class="dias-label">DIAS</div>
+</div>
+
+<!-- HRS : MIN : SEG . MIL -->
+<div class="time-row" id="board">
+
+  <div class="time-grp">
+    <div class="time-digs">
+      <div class="seg-dig sm" id="h0"></div>
+      <div class="seg-dig sm" id="h1"></div>
+    </div>
+    <div class="time-lbl">HRS</div>
+  </div>
+
+  <div class="colon"><div class="dot"></div><div class="dot"></div></div>
+
+  <div class="time-grp">
+    <div class="time-digs">
+      <div class="seg-dig sm" id="m0"></div>
+      <div class="seg-dig sm" id="m1"></div>
+    </div>
+    <div class="time-lbl">MIN</div>
+  </div>
+
+  <div class="colon"><div class="dot"></div><div class="dot"></div></div>
+
+  <div class="time-grp">
+    <div class="time-digs">
+      <div class="seg-dig sm" id="s0"></div>
+      <div class="seg-dig sm" id="s1"></div>
+    </div>
+    <div class="time-lbl">SEG</div>
+  </div>
+
+  <div class="dec-sep"><div class="dot"></div></div>
+
+  <div class="time-grp">
+    <div class="time-digs">
+      <div class="seg-dig sm" id="t0"></div>
+      <div class="seg-dig sm" id="t1"></div>
+      <div class="seg-dig sm" id="t2"></div>
+    </div>
+    <div class="time-lbl">MIL</div>
+  </div>
+
+</div>
+
+<button id="resetBtn">PRÓXIMO MÊS &rarr;</button>
+
+<div class="ctrls">
+  <button class="ctrl" id="fsBtn"  title="Tela cheia">&#x26F6;</button>
+  <button class="ctrl" id="cfgBtn" title="Configurações">&#9881;</button>
+</div>
+
+<div id="overlay"></div>
+
+<div id="cfg">
+  <div class="cfg-ttl">Configurações</div>
+
+  <div class="cfg-row">
+    <label>Nome da meta</label>
+    <input type="text" id="cfgTitle" placeholder="FALTAM PARA O FIM DO MÊS" maxlength="60">
+  </div>
+
+  <div class="cfg-row">
+    <label>Data alvo</label>
+    <input type="date" id="cfgDate">
+    <span class="cfg-hint">Vazio = último dia do mês atual.</span>
+  </div>
+
+  <div class="cfg-row">
+    <label>Hora alvo</label>
+    <input type="time" id="cfgTime">
+  </div>
+
+  <div class="cfg-row cfg-toggle">
+    <label>Som de alarme</label>
+    <label class="sw">
+      <input type="checkbox" id="cfgSound" checked>
+      <span class="sw-track"></span>
+      <span class="sw-thumb"></span>
+    </label>
+  </div>
+
+  <div class="cfg-row">
+    <label>Brilho do glow &mdash; <span id="glowLabel">100</span>%</label>
+    <input type="range" id="cfgGlow" min="0" max="100" value="100">
+  </div>
+
+  <div class="cfg-acts">
+    <button class="btn btn-cancel" id="cfgCancel">Cancelar</button>
+    <button class="btn btn-save"   id="cfgSave">Salvar</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ── Segment patterns ─────────────────────────────────────────────────────────
+   segments: a b c d e f g  (index 0-6)
+   a=top, b=top-right, c=bot-right, d=bottom, e=bot-left, f=top-left, g=middle */
+const PAT = [
+  'abcdef',   // 0
+  'bc',        // 1
+  'abdeg',     // 2
+  'abcdg',     // 3
+  'bcfg',      // 4
+  'acdfg',     // 5
+  'acdefg',    // 6
+  'abc',       // 7
+  'abcdefg',   // 8
+  'abcdfg',    // 9
+];
+
+/* ── Build a digit element ────────────────────────────────────────────────── */
+function buildDigit(container) {
+  'abcdefg'.split('').forEach(s => {
+    const el = document.createElement('div');
+    el.className = `seg s${s}`;
+    el.dataset.s = s;
+    container.appendChild(el);
+  });
+}
+
+/* ── Update a digit ───────────────────────────────────────────────────────── */
+function setDig(container, n) {
+  const on = PAT[Math.max(0, Math.min(9, n))] || '';
+  container.querySelectorAll('.seg').forEach(s => {
+    s.classList.toggle('lit', on.includes(s.dataset.s));
+  });
+}
+
+/* ── Helpers: set 2 or 3-digit groups ────────────────────────────────────── */
+function set2(id0, id1, v) {
+  setDig(document.getElementById(id0), Math.floor(v / 10) % 10);
+  setDig(document.getElementById(id1), v % 10);
+}
+
+function set3(id0, id1, id2, v) {
+  setDig(document.getElementById(id0), Math.floor(v / 100) % 10);
+  setDig(document.getElementById(id1), Math.floor(v / 10) % 10);
+  setDig(document.getElementById(id2), v % 10);
+}
+
+/* ── Init all digit containers ────────────────────────────────────────────── */
+['d0','d1','h0','h1','m0','m1','s0','s1','t0','t1','t2'].forEach(id => {
+  buildDigit(document.getElementById(id));
+});
+
+/* ── Config ───────────────────────────────────────────────────────────────── */
+const DEF = { title:'FALTAM PARA O FIM DO MÊS', targetDate:'', targetTime:'23:59:59', sound:true, glow:100 };
+let cfg = (() => { try { const s=localStorage.getItem('timer_cfg'); return s?{...DEF,...JSON.parse(s)}:{...DEF}; } catch{return{...DEF};} })();
+
+/* ── Target ───────────────────────────────────────────────────────────────── */
+function getTarget() {
+  if (cfg.targetDate) {
+    const [h=23,m=59,s=59] = (cfg.targetTime||'23:59:59').split(':').map(Number);
+    const d = new Date(cfg.targetDate + 'T00:00:00');
+    d.setHours(h, m, s, 999);
+    return d;
+  }
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth()+1, 0, 23, 59, 59, 999);
+}
+
+/* ── Tick ─────────────────────────────────────────────────────────────────── */
+let alarming=false, alarmRpt=null, audioCtx=null;
+
+function tick() {
+  let diff = getTarget().getTime() - Date.now();
+  if (diff <= 0) { diff = 0; if (!alarming) startAlarm(); }
+
+  const dias = Math.floor(diff / 86400000);
+  const hrs  = Math.floor((diff % 86400000) / 3600000);
+  const min  = Math.floor((diff % 3600000)  / 60000);
+  const seg  = Math.floor((diff % 60000)    / 1000);
+  const ms   = diff % 1000;
+
+  set2('d0','d1', dias);
+  set2('h0','h1', hrs);
+  set2('m0','m1', min);
+  set2('s0','s1', seg);
+  set3('t0','t1','t2', ms);
+}
+
+/* ── Alarm ────────────────────────────────────────────────────────────────── */
+const diasRow  = document.querySelector('.dias-row');
+const board    = document.getElementById('board');
+const resetBtn = document.getElementById('resetBtn');
+
+let blinkHandle = null;
+
+function startAlarm() {
+  alarming = true;
+  resetBtn.style.display = 'block';
+  // Blink: alternate class that dims all lit segments
+  let phase = false;
+  blinkHandle = setInterval(() => {
+    phase = !phase;
+    diasRow.classList.toggle('blink-a', phase);
+    board.classList.toggle('blink-a', phase);
+  }, 420);
+
+  if (cfg.sound) { beep(); alarmRpt = setInterval(beep, 5000); }
+}
+
+function stopAlarm() {
+  alarming = false;
+  resetBtn.style.display = 'none';
+  clearInterval(blinkHandle); blinkHandle = null;
+  diasRow.classList.remove('blink-a');
+  board.classList.remove('blink-a');
+  if (alarmRpt) { clearInterval(alarmRpt); alarmRpt = null; }
+}
+
+function beep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    [0, .38, .76].forEach(t => {
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.connect(g); g.connect(audioCtx.destination);
+      o.type = 'square'; o.frequency.value = 880;
+      g.gain.setValueAtTime(.22, audioCtx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime+t+.19);
+      o.start(audioCtx.currentTime+t); o.stop(audioCtx.currentTime+t+.2);
+    });
+  } catch {}
+}
+
+resetBtn.addEventListener('click', () => {
+  const n = new Date();
+  const e = new Date(n.getFullYear(), n.getMonth()+2, 0, 23, 59, 59, 999);
+  cfg.targetDate = `${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`;
+  cfg.targetTime = '23:59:59';
+  save(); stopAlarm();
+});
+
+/* ── Glow ─────────────────────────────────────────────────────────────────── */
+function applyGlow(pct) {
+  const g = pct / 100;
+  document.documentElement.style.setProperty('--glow',
+    g === 0 ? 'none' :
+    `0 0 ${7*g}px ${1*g}px rgba(255,30,0,${.75*g}),` +
+    `0 0 ${20*g}px ${2*g}px rgba(255,10,0,${.38*g}),` +
+    `0 0 ${50*g}px ${4*g}px rgba(255,0,0,${.14*g})`
+  );
+}
+
+/* ── Config panel ─────────────────────────────────────────────────────────── */
+const overlay  = document.getElementById('overlay');
+const cfgPanel = document.getElementById('cfg');
+
+function openCfg() {
+  document.getElementById('cfgTitle').value = cfg.title;
+  document.getElementById('cfgDate').value  = cfg.targetDate;
+  document.getElementById('cfgTime').value  = cfg.targetTime;
+  document.getElementById('cfgSound').checked = cfg.sound;
+  document.getElementById('cfgGlow').value  = cfg.glow;
+  document.getElementById('glowLabel').textContent = cfg.glow;
+  cfgPanel.classList.add('open'); overlay.classList.add('open');
+}
+function closeCfg() { cfgPanel.classList.remove('open'); overlay.classList.remove('open'); }
+
+document.getElementById('cfgBtn').addEventListener('click', openCfg);
+document.getElementById('cfgCancel').addEventListener('click', closeCfg);
+overlay.addEventListener('click', closeCfg);
+
+document.getElementById('cfgGlow').addEventListener('input', function() {
+  document.getElementById('glowLabel').textContent = this.value;
+  applyGlow(+this.value);
+});
+
+document.getElementById('cfgSave').addEventListener('click', () => {
+  cfg.title      = document.getElementById('cfgTitle').value.trim() || DEF.title;
+  cfg.targetDate = document.getElementById('cfgDate').value;
+  cfg.targetTime = document.getElementById('cfgTime').value || '23:59:59';
+  cfg.sound      = document.getElementById('cfgSound').checked;
+  cfg.glow       = +document.getElementById('cfgGlow').value;
+  document.getElementById('title').textContent = cfg.title;
+  applyGlow(cfg.glow);
+  stopAlarm(); save(); closeCfg();
+});
+
+/* ── Fullscreen ───────────────────────────────────────────────────────────── */
+document.getElementById('fsBtn').addEventListener('click', toggleFs);
+document.addEventListener('dblclick', () => { if (!cfgPanel.classList.contains('open')) toggleFs(); });
+function toggleFs() {
+  document.fullscreenElement
+    ? document.exitFullscreen().catch(()=>{})
+    : document.documentElement.requestFullscreen().catch(()=>{});
+}
+
+/* ── Persist ──────────────────────────────────────────────────────────────── */
+function save() { try { localStorage.setItem('timer_cfg', JSON.stringify(cfg)); } catch {} }
+
+/* ── Responsive sizing — sets inline styles directly for TV compat ─────────── */
+function setSizes() {
+  var h = window.innerHeight, w = window.innerWidth;
+  var dh = Math.min(h * .60, w * .44);
+  var dw = dh * .62;
+  var th = Math.min(h * .17, w * .15);
+  var tw = th * .62;
+  var ds = th * .16;
+
+  // CSS vars (modern browsers)
+  var rs = document.documentElement.style;
+  rs.setProperty('--dh', dh + 'px');
+  rs.setProperty('--dw', dw + 'px');
+  rs.setProperty('--th', th + 'px');
+  rs.setProperty('--tw', tw + 'px');
+  rs.setProperty('--ds', ds + 'px');
+
+  // Direct inline styles — work even without CSS variable support
+  var i, els;
+  els = document.querySelectorAll('.seg-dig.big');
+  for (i = 0; i < els.length; i++) { els[i].style.width = dw + 'px'; els[i].style.height = dh + 'px'; }
+  els = document.querySelectorAll('.seg-dig.sm');
+  for (i = 0; i < els.length; i++) { els[i].style.width = tw + 'px'; els[i].style.height = th + 'px'; }
+  els = document.querySelectorAll('.colon');
+  for (i = 0; i < els.length; i++) { els[i].style.height = th + 'px'; }
+  els = document.querySelectorAll('.dec-sep');
+  for (i = 0; i < els.length; i++) { els[i].style.height = th + 'px'; els[i].style.paddingBottom = (th * .12) + 'px'; }
+  els = document.querySelectorAll('.dot');
+  for (i = 0; i < els.length; i++) { els[i].style.width = ds + 'px'; els[i].style.height = ds + 'px'; }
+  els = document.querySelectorAll('.dias-digits');
+  for (i = 0; i < els.length; i++) { els[i].style.gap = (dw * .06) + 'px'; }
+  els = document.querySelectorAll('.time-digs');
+  for (i = 0; i < els.length; i++) { els[i].style.gap = (tw * .05) + 'px'; }
+}
+setSizes();
+window.addEventListener('resize', setSizes);
+
+/* ── Start ────────────────────────────────────────────────────────────────── */
+document.getElementById('title').textContent = cfg.title;
+applyGlow(cfg.glow);
+var raf = window.requestAnimationFrame || function(cb) { setTimeout(cb, 100); };
+function loop() { tick(); raf(loop); }
+raf(loop);
+</script>
+</body>
+</html>
