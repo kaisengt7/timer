@@ -392,190 +392,180 @@
 </div>
 
 <script>
-'use strict';
+/* ── Segment patterns ─────────────────────────────────────────────────────── */
+var PAT = ['abcdef','bc','abdeg','abcdg','bcfg','acdfg','acdefg','abc','abcdefg','abcdfg'];
 
-/* ── Segment patterns ─────────────────────────────────────────────────────────
-   segments: a b c d e f g  (index 0-6)
-   a=top, b=top-right, c=bot-right, d=bottom, e=bot-left, f=top-left, g=middle */
-const PAT = [
-  'abcdef',   // 0
-  'bc',        // 1
-  'abdeg',     // 2
-  'abcdg',     // 3
-  'bcfg',      // 4
-  'acdfg',     // 5
-  'acdefg',    // 6
-  'abc',       // 7
-  'abcdefg',   // 8
-  'abcdfg',    // 9
-];
-
-/* ── Build a digit element ────────────────────────────────────────────────── */
+/* ── Build digit ──────────────────────────────────────────────────────────── */
 function buildDigit(container) {
   var letters = ['a','b','c','d','e','f','g'];
   for (var i = 0; i < letters.length; i++) {
     var el = document.createElement('div');
     el.className = 'seg s' + letters[i];
-    el.dataset.s = letters[i];
+    el.setAttribute('data-s', letters[i]);
     container.appendChild(el);
   }
 }
 
-/* ── Update a digit ───────────────────────────────────────────────────────── */
+/* ── Update digit ─────────────────────────────────────────────────────────── */
 function setDig(container, n) {
   var on = PAT[Math.max(0, Math.min(9, n))] || '';
   var segs = container.querySelectorAll('.seg');
   for (var i = 0; i < segs.length; i++) {
-    var s = segs[i];
-    if (on.indexOf(s.dataset.s) >= 0) {
-      s.classList.add('lit');
+    if (on.indexOf(segs[i].getAttribute('data-s')) >= 0) {
+      segs[i].className = 'seg s' + segs[i].getAttribute('data-s') + ' lit';
     } else {
-      s.classList.remove('lit');
+      segs[i].className = 'seg s' + segs[i].getAttribute('data-s');
     }
   }
 }
 
-/* ── Helpers: set 2 or 3-digit groups ────────────────────────────────────── */
 function set2(id0, id1, v) {
   setDig(document.getElementById(id0), Math.floor(v / 10) % 10);
   setDig(document.getElementById(id1), v % 10);
 }
-
 function set3(id0, id1, id2, v) {
   setDig(document.getElementById(id0), Math.floor(v / 100) % 10);
-  setDig(document.getElementById(id1), Math.floor(v / 10) % 10);
+  setDig(document.getElementById(id1), Math.floor(v / 10)  % 10);
   setDig(document.getElementById(id2), v % 10);
 }
 
-/* ── Init all digit containers ────────────────────────────────────────────── */
-['d0','d1','h0','h1','m0','m1','s0','s1','t0','t1','t2'].forEach(id => {
-  buildDigit(document.getElementById(id));
-});
+/* ── Init containers ──────────────────────────────────────────────────────── */
+var DIG_IDS = ['d0','d1','h0','h1','m0','m1','s0','s1','t0','t1','t2'];
+for (var _d = 0; _d < DIG_IDS.length; _d++) {
+  buildDigit(document.getElementById(DIG_IDS[_d]));
+}
 
 /* ── Config ───────────────────────────────────────────────────────────────── */
-const DEF = { title:'FALTAM PARA O FIM DO MÊS', targetDate:'', targetTime:'23:59:59', sound:true, glow:100 };
-let cfg = (() => { try { const s=localStorage.getItem('timer_cfg'); return s?{...DEF,...JSON.parse(s)}:{...DEF}; } catch{return{...DEF};} })();
+var DEF = { title:'FALTAM PARA O FIM DO MÊS', targetDate:'', targetTime:'23:59:59', sound:true, glow:100 };
+function loadCfg() {
+  try {
+    var s = localStorage.getItem('timer_cfg');
+    if (s) {
+      var p = JSON.parse(s);
+      return {
+        title:      p.title      !== undefined ? p.title      : DEF.title,
+        targetDate: p.targetDate !== undefined ? p.targetDate : DEF.targetDate,
+        targetTime: p.targetTime !== undefined ? p.targetTime : DEF.targetTime,
+        sound:      p.sound      !== undefined ? p.sound      : DEF.sound,
+        glow:       p.glow       !== undefined ? p.glow       : DEF.glow
+      };
+    }
+  } catch(e) {}
+  return { title:DEF.title, targetDate:DEF.targetDate, targetTime:DEF.targetTime, sound:DEF.sound, glow:DEF.glow };
+}
+var cfg = loadCfg();
 
 /* ── Target ───────────────────────────────────────────────────────────────── */
 function getTarget() {
   if (cfg.targetDate) {
-    const [h=23,m=59,s=59] = (cfg.targetTime||'23:59:59').split(':').map(Number);
-    const d = new Date(cfg.targetDate + 'T00:00:00');
+    var parts = (cfg.targetTime || '23:59:59').split(':');
+    var h = parts[0] ? +parts[0] : 23;
+    var m = parts[1] ? +parts[1] : 59;
+    var s = parts[2] ? +parts[2] : 59;
+    var d = new Date(cfg.targetDate + 'T00:00:00');
     d.setHours(h, m, s, 999);
     return d;
   }
-  const n = new Date();
+  var n = new Date();
   return new Date(n.getFullYear(), n.getMonth()+1, 0, 23, 59, 59, 999);
 }
 
 /* ── Tick ─────────────────────────────────────────────────────────────────── */
-let alarming=false, alarmRpt=null, audioCtx=null;
-
+var alarming = false, alarmRpt = null, audioCtx = null;
 function tick() {
-  let diff = getTarget().getTime() - Date.now();
+  var diff = getTarget().getTime() - Date.now();
   if (diff <= 0) { diff = 0; if (!alarming) startAlarm(); }
-
-  const dias = Math.floor(diff / 86400000);
-  const hrs  = Math.floor((diff % 86400000) / 3600000);
-  const min  = Math.floor((diff % 3600000)  / 60000);
-  const seg  = Math.floor((diff % 60000)    / 1000);
-  const ms   = diff % 1000;
-
-  set2('d0','d1', dias);
-  set2('h0','h1', hrs);
-  set2('m0','m1', min);
-  set2('s0','s1', seg);
-  set3('t0','t1','t2', ms);
+  set2('d0','d1', Math.floor(diff / 86400000));
+  set2('h0','h1', Math.floor((diff % 86400000) / 3600000));
+  set2('m0','m1', Math.floor((diff % 3600000)  / 60000));
+  set2('s0','s1', Math.floor((diff % 60000)    / 1000));
+  set3('t0','t1','t2', diff % 1000);
 }
 
 /* ── Alarm ────────────────────────────────────────────────────────────────── */
-const diasRow  = document.querySelector('.dias-row');
-const board    = document.getElementById('board');
-const resetBtn = document.getElementById('resetBtn');
-
-let blinkHandle = null;
+var diasRow  = document.querySelector('.dias-row');
+var board    = document.getElementById('board');
+var resetBtn = document.getElementById('resetBtn');
+var blinkHandle = null;
 
 function startAlarm() {
   alarming = true;
   resetBtn.style.display = 'block';
-  // Blink: alternate class that dims all lit segments
-  let phase = false;
-  blinkHandle = setInterval(() => {
+  var phase = false;
+  blinkHandle = setInterval(function() {
     phase = !phase;
-    diasRow.classList.toggle('blink-a', phase);
-    board.classList.toggle('blink-a', phase);
+    if (phase) { diasRow.className += ' blink-a'; board.className += ' blink-a'; }
+    else { diasRow.className = diasRow.className.replace(' blink-a',''); board.className = board.className.replace(' blink-a',''); }
   }, 420);
-
   if (cfg.sound) { beep(); alarmRpt = setInterval(beep, 5000); }
 }
-
 function stopAlarm() {
   alarming = false;
   resetBtn.style.display = 'none';
   clearInterval(blinkHandle); blinkHandle = null;
-  diasRow.classList.remove('blink-a');
-  board.classList.remove('blink-a');
+  diasRow.className = diasRow.className.replace(' blink-a','');
+  board.className   = board.className.replace(' blink-a','');
   if (alarmRpt) { clearInterval(alarmRpt); alarmRpt = null; }
 }
-
 function beep() {
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-    [0, .38, .76].forEach(t => {
-      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var times = [0, .38, .76];
+    for (var i = 0; i < times.length; i++) {
+      var t = times[i];
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
       o.connect(g); g.connect(audioCtx.destination);
       o.type = 'square'; o.frequency.value = 880;
       g.gain.setValueAtTime(.22, audioCtx.currentTime+t);
       g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime+t+.19);
       o.start(audioCtx.currentTime+t); o.stop(audioCtx.currentTime+t+.2);
-    });
-  } catch {}
+    }
+  } catch(e) {}
 }
 
-resetBtn.addEventListener('click', () => {
-  const n = new Date();
-  const e = new Date(n.getFullYear(), n.getMonth()+2, 0, 23, 59, 59, 999);
-  cfg.targetDate = `${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`;
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+resetBtn.addEventListener('click', function() {
+  var n = new Date();
+  var e = new Date(n.getFullYear(), n.getMonth()+2, 0, 23, 59, 59, 999);
+  cfg.targetDate = e.getFullYear() + '-' + pad2(e.getMonth()+1) + '-' + pad2(e.getDate());
   cfg.targetTime = '23:59:59';
   save(); stopAlarm();
 });
 
 /* ── Glow ─────────────────────────────────────────────────────────────────── */
 function applyGlow(pct) {
-  const g = pct / 100;
-  document.documentElement.style.setProperty('--glow',
-    g === 0 ? 'none' :
-    `0 0 ${7*g}px ${1*g}px rgba(255,30,0,${.75*g}),` +
-    `0 0 ${20*g}px ${2*g}px rgba(255,10,0,${.38*g}),` +
-    `0 0 ${50*g}px ${4*g}px rgba(255,0,0,${.14*g})`
-  );
+  var g = pct / 100;
+  var val = g === 0 ? 'none' :
+    '0 0 ' + (7*g)  + 'px ' + (1*g) + 'px rgba(255,30,0,' + (.75*g) + '),' +
+    '0 0 ' + (20*g) + 'px ' + (2*g) + 'px rgba(255,10,0,' + (.38*g) + '),' +
+    '0 0 ' + (50*g) + 'px ' + (4*g) + 'px rgba(255,0,0,'  + (.14*g) + ')';
+  document.documentElement.style.setProperty('--glow', val);
 }
 
 /* ── Config panel ─────────────────────────────────────────────────────────── */
-const overlay  = document.getElementById('overlay');
-const cfgPanel = document.getElementById('cfg');
-
+var overlay  = document.getElementById('overlay');
+var cfgPanel = document.getElementById('cfg');
 function openCfg() {
-  document.getElementById('cfgTitle').value = cfg.title;
-  document.getElementById('cfgDate').value  = cfg.targetDate;
-  document.getElementById('cfgTime').value  = cfg.targetTime;
+  document.getElementById('cfgTitle').value   = cfg.title;
+  document.getElementById('cfgDate').value    = cfg.targetDate;
+  document.getElementById('cfgTime').value    = cfg.targetTime;
   document.getElementById('cfgSound').checked = cfg.sound;
-  document.getElementById('cfgGlow').value  = cfg.glow;
+  document.getElementById('cfgGlow').value    = cfg.glow;
   document.getElementById('glowLabel').textContent = cfg.glow;
-  cfgPanel.classList.add('open'); overlay.classList.add('open');
+  cfgPanel.className += ' open'; overlay.className += ' open';
 }
-function closeCfg() { cfgPanel.classList.remove('open'); overlay.classList.remove('open'); }
-
+function closeCfg() {
+  cfgPanel.className = cfgPanel.className.replace(' open','');
+  overlay.className  = overlay.className.replace(' open','');
+}
 document.getElementById('cfgBtn').addEventListener('click', openCfg);
 document.getElementById('cfgCancel').addEventListener('click', closeCfg);
 overlay.addEventListener('click', closeCfg);
-
 document.getElementById('cfgGlow').addEventListener('input', function() {
   document.getElementById('glowLabel').textContent = this.value;
   applyGlow(+this.value);
 });
-
-document.getElementById('cfgSave').addEventListener('click', () => {
+document.getElementById('cfgSave').addEventListener('click', function() {
   cfg.title      = document.getElementById('cfgTitle').value.trim() || DEF.title;
   cfg.targetDate = document.getElementById('cfgDate').value;
   cfg.targetTime = document.getElementById('cfgTime').value || '23:59:59';
@@ -587,18 +577,21 @@ document.getElementById('cfgSave').addEventListener('click', () => {
 });
 
 /* ── Fullscreen ───────────────────────────────────────────────────────────── */
-document.getElementById('fsBtn').addEventListener('click', toggleFs);
-document.addEventListener('dblclick', () => { if (!cfgPanel.classList.contains('open')) toggleFs(); });
 function toggleFs() {
-  document.fullscreenElement
-    ? document.exitFullscreen().catch(()=>{})
-    : document.documentElement.requestFullscreen().catch(()=>{});
+  try {
+    if (document.fullscreenElement) { document.exitFullscreen(); }
+    else { document.documentElement.requestFullscreen(); }
+  } catch(e) {}
 }
+document.getElementById('fsBtn').addEventListener('click', toggleFs);
+document.addEventListener('dblclick', function() {
+  if (cfgPanel.className.indexOf('open') < 0) toggleFs();
+});
 
 /* ── Persist ──────────────────────────────────────────────────────────────── */
-function save() { try { localStorage.setItem('timer_cfg', JSON.stringify(cfg)); } catch {} }
+function save() { try { localStorage.setItem('timer_cfg', JSON.stringify(cfg)); } catch(e) {} }
 
-/* ── Responsive sizing — sets inline styles directly for TV compat ─────────── */
+/* ── Sizing ───────────────────────────────────────────────────────────────── */
 function setSizes() {
   var h = window.innerHeight, w = window.innerWidth;
   var dh = Math.min(h * .60, w * .44);
@@ -606,31 +599,25 @@ function setSizes() {
   var th = Math.min(h * .17, w * .15);
   var tw = th * .62;
   var ds = th * .16;
-
-  // CSS vars (modern browsers)
   var rs = document.documentElement.style;
-  rs.setProperty('--dh', dh + 'px');
-  rs.setProperty('--dw', dw + 'px');
-  rs.setProperty('--th', th + 'px');
-  rs.setProperty('--tw', tw + 'px');
-  rs.setProperty('--ds', ds + 'px');
-
-  // Direct inline styles — work even without CSS variable support
+  rs.setProperty('--dh', dh+'px'); rs.setProperty('--dw', dw+'px');
+  rs.setProperty('--th', th+'px'); rs.setProperty('--tw', tw+'px');
+  rs.setProperty('--ds', ds+'px');
   var i, els;
   els = document.querySelectorAll('.seg-dig.big');
-  for (i = 0; i < els.length; i++) { els[i].style.width = dw + 'px'; els[i].style.height = dh + 'px'; }
+  for (i=0;i<els.length;i++){els[i].style.width=dw+'px';els[i].style.height=dh+'px';}
   els = document.querySelectorAll('.seg-dig.sm');
-  for (i = 0; i < els.length; i++) { els[i].style.width = tw + 'px'; els[i].style.height = th + 'px'; }
+  for (i=0;i<els.length;i++){els[i].style.width=tw+'px';els[i].style.height=th+'px';}
   els = document.querySelectorAll('.colon');
-  for (i = 0; i < els.length; i++) { els[i].style.height = th + 'px'; }
+  for (i=0;i<els.length;i++){els[i].style.height=th+'px';}
   els = document.querySelectorAll('.dec-sep');
-  for (i = 0; i < els.length; i++) { els[i].style.height = th + 'px'; els[i].style.paddingBottom = (th * .12) + 'px'; }
+  for (i=0;i<els.length;i++){els[i].style.height=th+'px';els[i].style.paddingBottom=(th*.12)+'px';}
   els = document.querySelectorAll('.dot');
-  for (i = 0; i < els.length; i++) { els[i].style.width = ds + 'px'; els[i].style.height = ds + 'px'; }
+  for (i=0;i<els.length;i++){els[i].style.width=ds+'px';els[i].style.height=ds+'px';}
   els = document.querySelectorAll('.dias-digits');
-  for (i = 0; i < els.length; i++) { els[i].style.gap = (dw * .06) + 'px'; }
+  for (i=0;i<els.length;i++){els[i].style.gap=(dw*.06)+'px';}
   els = document.querySelectorAll('.time-digs');
-  for (i = 0; i < els.length; i++) { els[i].style.gap = (tw * .05) + 'px'; }
+  for (i=0;i<els.length;i++){els[i].style.gap=(tw*.05)+'px';}
 }
 setSizes();
 window.addEventListener('resize', setSizes);
