@@ -412,20 +412,27 @@ const PAT = [
 
 /* ── Build a digit element ────────────────────────────────────────────────── */
 function buildDigit(container) {
-  'abcdefg'.split('').forEach(s => {
-    const el = document.createElement('div');
-    el.className = `seg s${s}`;
-    el.dataset.s = s;
+  var letters = ['a','b','c','d','e','f','g'];
+  for (var i = 0; i < letters.length; i++) {
+    var el = document.createElement('div');
+    el.className = 'seg s' + letters[i];
+    el.dataset.s = letters[i];
     container.appendChild(el);
-  });
+  }
 }
 
 /* ── Update a digit ───────────────────────────────────────────────────────── */
 function setDig(container, n) {
-  const on = PAT[Math.max(0, Math.min(9, n))] || '';
-  container.querySelectorAll('.seg').forEach(s => {
-    s.classList.toggle('lit', on.includes(s.dataset.s));
-  });
+  var on = PAT[Math.max(0, Math.min(9, n))] || '';
+  var segs = container.querySelectorAll('.seg');
+  for (var i = 0; i < segs.length; i++) {
+    var s = segs[i];
+    if (on.indexOf(s.dataset.s) >= 0) {
+      s.classList.add('lit');
+    } else {
+      s.classList.remove('lit');
+    }
+  }
 }
 
 /* ── Helpers: set 2 or 3-digit groups ────────────────────────────────────── */
