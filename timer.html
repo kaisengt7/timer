@@ -82,7 +82,6 @@
       --glow: 0 0 4px 1px rgba(255,255,255,.2), 0 0 10px rgba(255,255,255,.08);
       display: flex;
       align-items: flex-start;
-      gap: clamp(.25rem, .7vw, .9rem);
     }
 
     .time-grp {
@@ -625,6 +624,11 @@ function setSizes() {
   els = document.querySelectorAll('.dot');
   for (i=0;i<els.length;i++){els[i].style.width=ds+'px';els[i].style.height=ds+'px';}
   // use margin instead of gap (gap on flex not supported in old browsers)
+  if (board) {
+    var trGap = Math.min(Math.max(w * 0.007, 4), 14);
+    var bch = board.children;
+    for (i = 0; i < bch.length - 1; i++) bch[i].style.marginRight = trGap + 'px';
+  }
   var diasDig = document.querySelector('.dias-digits');
   if (diasDig && diasDig.children.length > 0) diasDig.children[0].style.marginRight=(dw*.06)+'px';
   els = document.querySelectorAll('.time-digs');
