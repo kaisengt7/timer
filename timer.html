@@ -614,15 +614,24 @@ function setSizes() {
   els = document.querySelectorAll('.seg-dig.sm');
   for (i=0;i<els.length;i++){els[i].style.width=tw+'px';els[i].style.height=th+'px';}
   els = document.querySelectorAll('.colon');
-  for (i=0;i<els.length;i++){els[i].style.height=th+'px';}
+  for (i=0;i<els.length;i++){
+    els[i].style.height=th+'px';
+    // space the two dots vertically via margin instead of gap
+    var cDots = els[i].querySelectorAll('.dot');
+    if (cDots.length > 0) cDots[0].style.marginBottom = (ds*1.4)+'px';
+  }
   els = document.querySelectorAll('.dec-sep');
   for (i=0;i<els.length;i++){els[i].style.height=th+'px';els[i].style.paddingBottom=(th*.12)+'px';}
   els = document.querySelectorAll('.dot');
   for (i=0;i<els.length;i++){els[i].style.width=ds+'px';els[i].style.height=ds+'px';}
-  els = document.querySelectorAll('.dias-digits');
-  for (i=0;i<els.length;i++){els[i].style.gap=(dw*.06)+'px';}
+  // use margin instead of gap (gap on flex not supported in old browsers)
+  var diasDig = document.querySelector('.dias-digits');
+  if (diasDig && diasDig.children.length > 0) diasDig.children[0].style.marginRight=(dw*.06)+'px';
   els = document.querySelectorAll('.time-digs');
-  for (i=0;i<els.length;i++){els[i].style.gap=(tw*.05)+'px';}
+  for (i=0;i<els.length;i++){
+    var ch = els[i].children;
+    for (var j=0;j<ch.length-1;j++) ch[j].style.marginRight=(tw*.05)+'px';
+  }
 }
 setSizes();
 window.addEventListener('resize', setSizes);
